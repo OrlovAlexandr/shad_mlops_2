@@ -1,6 +1,9 @@
-import pandas as pd
 import logging
+import os
+
+import pandas as pd
 from catboost import CatBoostClassifier
+
 
 # Настройка логгера
 logger = logging.getLogger(__name__)
@@ -8,40 +11,25 @@ logger = logging.getLogger(__name__)
 logger.info('Importing pretrained model...')
 
 # Import model
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 model = CatBoostClassifier()
 model.load_model('./models/my_catboost.cbm')
 
 # Define optimal threshold
-model_th = 0.98
+THRESHOLD = 0.5
 logger.info('Pretrained model imported successfully...')
 
 
+# Make prediction
 def make_pred(dt, source_info="kafka"):
-
-    print(dt.dtypes)
-
-    # Меняем формат категориальных фичей на string перед скорингом
-    expected_categorical = ['hour',
-                            'year',
-                            'month',
-                            'day_of_month',
-                            'day_of_week',
-                            'gender_cat',
-                            'merch_cat',
-                            'cat_id_cat',
-                            'one_city_cat',
-                            'us_state_cat',
-                            'jobs_cat']
-    for col in expected_categorical:
-        if col in dt.columns:
-            dt[col] = dt[col].astype(str)
+    y_proba = model.predict_proba(dt)[:, 1]
 
     # Calculate score
     submission = pd.DataFrame({
-        'score':  model.predict_proba(dt)[:, 1],
-        'fraud_flag': (model.predict_proba(dt)[:, 1] > model_th) * 1
+        'score':  y_proba,
+        'fraud_flag': (y_proba > THRESHOLD) * 1
     })
     logger.info(f'Prediction complete for data from {source_info}')
 
     # Return proba for positive class
-    return submission
+    return submission, y_proba

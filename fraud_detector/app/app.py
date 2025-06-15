@@ -43,7 +43,7 @@ class ProcessingService:
         self.producer = Producer(self.producer_config)
         
         # Загрузка данных для препроцессинга
-        self.train = load_train_data()
+        # self.train = load_train_data()
 
     def process_messages(self):
         while True:
@@ -62,8 +62,8 @@ class ProcessingService:
                 input_df = pd.DataFrame([data['data']])
 
                 # Препроцессинг и предсказание
-                processed_df = run_preproc(self.train, input_df)
-                submission = make_pred(processed_df, "kafka_stream")
+                processed_df = run_preproc(input_df)
+                submission, y_proba = make_pred(processed_df, "kafka_stream")
 
                 # Добавляем ID в результат
                 submission['transaction_id'] = transaction_id
