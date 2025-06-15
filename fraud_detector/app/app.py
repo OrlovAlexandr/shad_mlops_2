@@ -42,8 +42,6 @@ class ProcessingService:
         self.consumer.subscribe([TRANSACTIONS_TOPIC])
         self.producer = Producer(self.producer_config)
         
-        # Загрузка данных для препроцессинга
-        # self.train = load_train_data()
 
     def process_messages(self):
         while True:

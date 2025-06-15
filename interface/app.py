@@ -5,6 +5,9 @@ import json
 import time
 import os
 import uuid
+import matplotlib.pyplot as plt
+import psycopg2
+
 
 # Конфигурация Kafka
 KAFKA_CONFIG = {
@@ -54,6 +57,41 @@ def send_to_kafka(df, topic, bootstrap_servers):
         st.error(f"Ошибка отправки данных: {str(e)}")
         return False
 
+
+# Функция подключения к БД
+def get_db_connection():
+    return psycopg2.connect(
+        host=os.getenv("POSTGRES_HOST"),
+        port=os.getenv("POSTGRES_PORT"),
+        database=os.getenv("POSTGRES_DB"),
+        user=os.getenv("POSTGRES_USER"),
+        password=os.getenv("POSTGRES_PASSWORD")
+    )
+
+
+# Загрузка 10 последних фродовых транзакций
+def load_fraud_transactions(limit=10):
+    conn = get_db_connection()
+    query = f"""
+        SELECT * FROM scores WHERE fraud_flag = 1
+        ORDER BY created_at DESC LIMIT {limit}
+    """
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
+
+# Загрузка 100 последних транзакций
+def load_scores(limit=100):
+    conn = get_db_connection()
+    query = f"""
+        SELECT score FROM scores
+        ORDER BY created_at DESC LIMIT {limit}
+    """
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
+
+
 # Инициализация состояния
 if "uploaded_files" not in st.session_state:
     st.session_state.uploaded_files = {}
@@ -100,3 +138,24 @@ if st.session_state.uploaded_files:
                             st.rerun()
                 else:
                     st.error("Файл не содержит данных")
+
+if st.button("Посмотреть результаты"):
+    st.subheader("Последние 10 фродовых транзакций:")
+    fraud_df = load_fraud_transactions(limit=10)
+    if not fraud_df.empty:
+        st.dataframe(fraud_df[["transaction_id", "score", "fraud_flag", "created_at"]])
+    else:
+        st.write("Нет записей с fraud_flag == 1")
+
+    st.subheader("Гистограмма скоров последних транзакций:")
+    score_df = load_scores(limit=100)
+    if not score_df.empty:
+        fig, ax = plt.subplots()
+        ax.hist(score_df['score'], bins=40, color='steelblue', edgecolor='black')
+        ax.set_title('Распределение скоров')
+        ax.set_xlabel('Score')
+        ax.set_ylabel('Частота')
+        ax.grid(ls=':')
+        st.pyplot(fig)
+    else:
+        st.write("Нет записей в базе для построения гистограммы")
