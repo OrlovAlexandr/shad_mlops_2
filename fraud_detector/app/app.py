@@ -1,24 +1,24 @@
+import json
+import logging
 import os
 import sys
+
 import pandas as pd
-import time
-import logging
-import json
-from datetime import datetime
+from confluent_kafka import Consumer
+from confluent_kafka import Producer
 
-from confluent_kafka import Consumer, Producer, KafkaError
-
-sys.path.append(os.path.abspath('./src'))
-from preprocessing import load_train_data, run_preproc
+sys.path.append(os.path.abspath('./src'))  # noqa: PTH100
+from preprocessing import run_preproc
 from scorer import make_pred
+
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('/app/logs/service.log'),
-        logging.StreamHandler()
-    ]
+        logging.StreamHandler(),
+    ],
 )
 logger = logging.getLogger(__name__)
 
@@ -33,15 +33,14 @@ class ProcessingService:
         self.consumer_config = {
             'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS,
             'group.id': 'ml-scorer',
-            'auto.offset.reset': 'earliest'
+            'auto.offset.reset': 'earliest',
         }
         self.producer_config = {
-             'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS
-             }
+            'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS,
+        }
         self.consumer = Consumer(self.consumer_config)
         self.consumer.subscribe([TRANSACTIONS_TOPIC])
         self.producer = Producer(self.producer_config)
-        
 
     def process_messages(self):
         while True:
@@ -69,11 +68,11 @@ class ProcessingService:
                 # Отправка результата в топик scoring
                 self.producer.produce(
                     'scoring',
-                    value=submission.to_json(orient='records')
+                    value=submission.to_json(orient='records'),
                 )
                 self.producer.flush()
             except Exception as e:
-                logger.error(f"Error processing message: {e}")
+                logger.exception(f"Error processing message: {e}")
 
 
 if __name__ == "__main__":

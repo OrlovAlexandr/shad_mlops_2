@@ -1,13 +1,15 @@
-import os
-import logging
-from datetime import datetime
-from confluent_kafka import Consumer
-import psycopg2
 import json
+import logging
+import os
+
+import psycopg2
+from confluent_kafka import Consumer
+
 
 # Настройка логгирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 def get_db_config():
     return {
@@ -15,8 +17,9 @@ def get_db_config():
         "port": os.getenv("POSTGRES_PORT"),
         "database": os.getenv("POSTGRES_DB"),
         "user": os.getenv("POSTGRES_USER"),
-        "password": os.getenv("POSTGRES_PASSWORD")
+        "password": os.getenv("POSTGRES_PASSWORD"),
     }
+
 
 def create_table(conn):
     with conn.cursor() as cur:
@@ -32,6 +35,7 @@ def create_table(conn):
         conn.commit()
         logger.info("Таблица 'scores' проверена или создана.")
 
+
 def insert_score(conn, data):
     with conn.cursor() as cur:
         cur.execute("""
@@ -40,6 +44,7 @@ def insert_score(conn, data):
         """, (data["transaction_id"], data["score"], data["fraud_flag"]))
         conn.commit()
 
+
 def run_consumer():
     kafka_bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
     scoring_topic = os.getenv("KAFKA_SCORING_TOPIC")
@@ -47,7 +52,7 @@ def run_consumer():
     consumer_config = {
         'bootstrap.servers': kafka_bootstrap_servers,
         'group.id': 'scoring-writer',
-        'auto.offset.reset': 'earliest'
+        'auto.offset.reset': 'earliest',
     }
 
     logger.info(f"Подключение к Kafka: {kafka_bootstrap_servers}, топик: {scoring_topic}")
@@ -86,15 +91,16 @@ def run_consumer():
                     logger.error(f"Ожидался список, получен: {type(data_list)}")
 
             except json.JSONDecodeError as je:
-                logger.error(f"Ошибка декодирования JSON: {je}")
+                logger.exception(f"Ошибка декодирования JSON: {je}")
             except Exception as e:
-                logger.error(f"Ошибка обработки сообщения: {e}")
+                logger.exception(f"Ошибка обработки сообщения: {e}")
 
     except KeyboardInterrupt:
         logger.info("Потребитель остановлен пользователем.")
     finally:
         consumer.close()
         conn.close()
+
 
 if __name__ == "__main__":
     logger.info("Запуск потребителя и писателя в БД...")

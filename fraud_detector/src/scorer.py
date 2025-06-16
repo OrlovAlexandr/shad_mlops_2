@@ -26,8 +26,8 @@ def make_pred(dt, source_info="kafka"):
 
     # Calculate score
     submission = pd.DataFrame({
-        'score':  y_proba,
-        'fraud_flag': (y_proba > THRESHOLD) * 1
+        'score': y_proba,
+        'fraud_flag': (y_proba > THRESHOLD) * 1,
     })
     logger.info(f'Prediction complete for data from {source_info}')
 
